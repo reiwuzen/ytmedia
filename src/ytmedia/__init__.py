@@ -10,6 +10,7 @@ from .core import (
     download_mp3,
     download_playlist_mp4,
     get_info,
+    init
 )
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     "download_mp3",
     "download_playlist_mp4",
     "get_info",
+    "init",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

@@ -4,6 +4,7 @@ cli.py
 Command-line interface for ytmedia.
 
 Usage examples:
+    ytmedia init
     ytmedia mp4 https://youtu.be/xxxx
     ytmedia mp3 https://youtu.be/xxxx
     ytmedia mp4 https://youtu.be/xxxx -o ./videos -r 1080
@@ -13,22 +14,24 @@ Usage examples:
 """
 
 import argparse
-import json
 import sys
 
-from ytmedia import download_mp4, download_mp3, download_playlist_mp4, get_info
+from .core import download_mp4, download_mp3, download_playlist_mp4, get_info, init
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="ytmedia",
         description="Download MP4 and MP3 from YouTube at the highest possible quality.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 examples:
-  ytmedia mp4 https://youtu.be/xxxx
-  ytmedia mp4 https://youtu.be/xxxx -r 1080 -o ./videos
-  ytmedia mp3 https://youtu.be/xxxx -q 192
+  ytmedia init                                         # install ffmpeg + yt-dlp-ejs
+  ytmedia mp4 https://youtu.be/xxxx                   # best quality MP4
+  ytmedia mp4 https://youtu.be/xxxx -r 1080 -o ./vid  # 1080p into ./vid
+  ytmedia mp4 https://youtu.be/xxxx --no-audio        # video only
+  ytmedia mp3 https://youtu.be/xxxx                   # 320kbps MP3
+  ytmedia mp3 https://youtu.be/xxxx -q 192            # 192kbps MP3
   ytmedia playlist https://youtube.com/playlist?list=xxxx
   ytmedia info https://youtu.be/xxxx
         """,
@@ -36,10 +39,14 @@ examples:
 
     parser.add_argument(
         "mode",
-        choices=["mp4", "mp3", "playlist", "info"],
-        help="Download mode: mp4, mp3, playlist (mp4), or info (metadata only)",
+        choices=["init", "mp4", "mp3", "playlist", "info"],
+        help="Command: init | mp4 | mp3 | playlist | info",
     )
-    parser.add_argument("url", help="YouTube video or playlist URL")
+    parser.add_argument(
+        "url",
+        nargs="?",          # optional — not required for init
+        help="YouTube video or playlist URL",
+    )
     parser.add_argument(
         "-o", "--output",
         default="downloads",
@@ -67,8 +74,15 @@ examples:
 
     args = parser.parse_args()
 
+    # url is required for every mode except init
+    if args.mode != "init" and not args.url:
+        parser.error(f"url is required for '{args.mode}' mode.")
+
     try:
-        if args.mode == "mp4":
+        if args.mode == "init":
+            init()
+
+        elif args.mode == "mp4":
             download_mp4(
                 args.url,
                 output_dir=args.output,
@@ -92,10 +106,10 @@ examples:
             print(f"\nAvailable formats: {len(info.get('formats', []))}")
 
     except KeyboardInterrupt:
-        print("\n\n⚠️  Cancelled by user.")
+        print("\n\nCancelled by user.")
         sys.exit(0)
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nError: {e}")
         sys.exit(1)
 
 
