@@ -1,6 +1,5 @@
 yt-dlp>=2024.1.0
 yt-dlp-ejs
-static-ffmpeg>=2.5
 
 [all]
 static-ffmpeg>=2.5

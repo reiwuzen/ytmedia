@@ -88,16 +88,18 @@ def _merge_hooks() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# init — download all required binaries
+# init — set up dependencies
 # ---------------------------------------------------------------------------
 
 def init() -> None:
     """
-    Download and configure all required external dependencies:
-      - ffmpeg  (via static-ffmpeg, cross-platform prebuilt binary)
-      - yt-dlp-ejs  (JS challenge solver scripts for full YouTube support)
+    Set up all required dependencies for ytmedia:
+      - yt-dlp-ejs  : JS challenge solver scripts for full YouTube format support
+      - static-ffmpeg : activates a bundled ffmpeg binary scoped to this Python
+                        environment (NOT a system-wide install). For a permanent
+                        system install use: winget install ffmpeg  /  brew install ffmpeg
 
-    Safe to run multiple times — skips anything already installed.
+    Safe to run multiple times -- skips anything already in place.
     """
     print("=== ytmedia init ===\n")
 
@@ -113,25 +115,46 @@ def init() -> None:
         )
         print("[yt-dlp-ejs] installed.")
 
-    # 2 — ffmpeg via static-ffmpeg (prebuilt binary, no system install needed)
+    # 2 — ffmpeg
     if _has_ffmpeg():
         print(f"[ffmpeg]     already found at {shutil.which('ffmpeg')}")
     else:
-        print("[ffmpeg]     not found on PATH — installing via static-ffmpeg ...")
-        try:
-            subprocess.check_call(
-                [sys.executable, "-m", "pip", "install", "static-ffmpeg"],
-                stdout=subprocess.DEVNULL,
-            )
-            import static_ffmpeg
-            static_ffmpeg.add_paths()  # adds ffmpeg binary to PATH for this session
-            if _has_ffmpeg():
-                print(f"[ffmpeg]     installed at {shutil.which('ffmpeg')}")
-            else:
-                print("[ffmpeg]     installed but not yet on PATH — restart your terminal.")
-        except Exception as e:
-            print(f"[ffmpeg]     failed to auto-install: {e}")
+        print("[ffmpeg]     not found on PATH.")
+        print()
+        print("  How would you like to install ffmpeg?")
+        print("  [1] Download for this Python environment only (via static-ffmpeg, easiest)")
+        print("  [2] Show system-wide install instructions (winget / brew / apt)")
+        print("  [s] Skip")
+        print()
+
+        choice = input("  Enter choice [1/2/s]: ").strip().lower()
+
+        if choice == "1":
+            print()
+            print("[ffmpeg]     downloading bundled binary via static-ffmpeg ...")
+            try:
+                subprocess.check_call(
+                    [sys.executable, "-m", "pip", "install", "static-ffmpeg"],
+                    stdout=subprocess.DEVNULL,
+                )
+                import static_ffmpeg
+                static_ffmpeg.add_paths()
+                if _has_ffmpeg():
+                    print(f"[ffmpeg]     installed at {shutil.which('ffmpeg')}")
+                    print("[ffmpeg]     note: this is scoped to your Python environment,")
+                    print("             not a system-wide install.")
+                else:
+                    print("[ffmpeg]     installed but PATH not updated yet — restart your terminal.")
+            except Exception as e:
+                print(f"[ffmpeg]     failed: {e}")
+                _print_ffmpeg_install_hint()
+
+        elif choice == "2":
+            print()
             _print_ffmpeg_install_hint()
+
+        else:
+            print("[ffmpeg]     skipped. Run ytmedia init again when ready.")
 
     # 3 — JS runtime check (Node.js / Deno — must be installed by user)
     runtimes = _get_js_runtimes()

@@ -6,27 +6,41 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.2.1] - 2026-02-19
+## [0.2.2] — 2026-02-19
 
 ### Added
+- `init()` now prompts the user when ffmpeg is missing with three options:
+  - `[1]` Download bundled binary via static-ffmpeg (Python environment only)
+  - `[2]` Show system-wide install instructions (winget / brew / apt)
+  - `[s]` Skip
 
-- spinner `⠹` on merger process
+### Fixed
+- Version bump to resolve PyPI filename reuse error (0.2.1 upload failed mid-upload)
+- Corrected misleading documentation — `init()` installs a bundled ffmpeg scoped to
+  the Python environment, not a system-wide install
 
-### Changed 
+---
 
-- removed ffmpeg from main dependencies
+## [0.2.1] — 2026-02-19
 
+### Added
+- Animated spinner (`⠹`) shown during ffmpeg merge step instead of static 0%/100% text
+
+### Changed
+- Removed `static-ffmpeg` from core dependencies to avoid pulling in `twine` and its
+  large dependency chain on every `pip install ytmedia`
 
 ---
 
 ## [0.2.0] — 2026-02-19
 
 ### Added
-- `init()` — auto-install ffmpeg (via static-ffmpeg) and yt-dlp-ejs with a single command
+- `init()` — sets up yt-dlp-ejs and a bundled ffmpeg binary for the Python environment
 - `ytmedia init` CLI command
-- Cross-platform ffmpeg install hints (Windows, macOS, Linux) as fallback in `init()`
+- Cross-platform ffmpeg install instructions printed as fallback when auto-setup fails
 - Merge progress display during ffmpeg video+audio merge step
-- AAC audio encoding during merge — fixes Opus codec incompatibility with Windows Media Player and QuickTime
+- AAC audio encoding during merge — fixes Opus codec incompatibility with Windows
+  Media Player and QuickTime
 - `--no-audio` CLI flag for video-only MP4 downloads
 - Auto-detection of Node.js and Deno JS runtimes for full YouTube format support
 
