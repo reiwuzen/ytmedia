@@ -9,23 +9,51 @@ using yt-dlp at the highest possible quality.
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
 import yt_dlp
-
-
-def _base_opts(output_dir: str) -> dict:
-    """Shared yt-dlp options."""
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    return {
-        "outtmpl": os.path.join(output_dir, "%(title)s.%(ext)s"),
-        "quiet": False,
-        "no_warnings": False,
-    }
 
 
 def _has_ffmpeg() -> bool:
     """Check if ffmpeg is available on PATH."""
     return shutil.which("ffmpeg") is not None
+
+
+def _get_js_runtimes() -> dict[str, Any]:
+    """
+    Build the js_runtimes dict for the yt-dlp Python API.
+    yt-dlp requires this format: {'node': {'executable': '/path/to/node'}}
+
+    Also checks for deno as a fallback.
+    Returns an empty dict if nothing is found (yt-dlp will warn but still work).
+    """
+    runtimes: dict[str, Any] = {}
+
+    node = shutil.which("node") or shutil.which("node.exe")
+    if node:
+        runtimes["node"] = {"executable": node}
+
+    deno = shutil.which("deno")
+    if deno:
+        runtimes["deno"] = {"executable": deno}
+
+    return runtimes
+
+
+def _base_opts(output_dir: str) -> dict[str, Any]:
+    """Shared yt-dlp options."""
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    opts: dict[str, Any] = {
+        "outtmpl": os.path.join(output_dir, "%(title)s.%(ext)s"),
+        "quiet": False,
+        "no_warnings": False,
+    }
+
+    runtimes = _get_js_runtimes()
+    if runtimes:
+        opts["js_runtimes"] = runtimes
+
+    return opts
 
 
 def download_mp4(
@@ -104,7 +132,7 @@ def download_mp4(
             "merger": ["-c:v", "copy", "-c:a", "aac"]
         }
 
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type]
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
         # After merging, yt-dlp writes to .mp4 due to merge_output_format
@@ -149,7 +177,7 @@ def download_mp3(
         }
     )
 
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type]
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
         mp3_filename = os.path.splitext(filename)[0] + ".mp3"
@@ -197,7 +225,7 @@ def download_playlist_mp4(
     )
 
     downloaded = []
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type]
         info = ydl.extract_info(playlist_url, download=True)
         if "entries" in info:
             for entry in info["entries"]:
@@ -210,14 +238,21 @@ def download_playlist_mp4(
     return downloaded
 
 
-def get_info(url: str) -> dict:
+def get_info(url: str) -> dict[str, Any]:
     """
     Fetch metadata for a YouTube URL without downloading.
 
     Returns a dict with keys like: title, uploader, duration,
     formats, thumbnails, etc.
     """
-    opts = {"quiet": True, "no_warnings": True}
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    opts: dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+    }
+    runtimes = _get_js_runtimes()
+    if runtimes:
+        opts["js_runtimes"] = runtimes
+
+    with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type]
         info = ydl.extract_info(url, download=False)
-    return info
+    return info  # type: ignore[return-value]

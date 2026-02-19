@@ -16,7 +16,7 @@ import argparse
 import json
 import sys
 
-from .core import download_mp4, download_mp3, download_playlist_mp4, get_info
+from ytmedia import download_mp4, download_mp3, download_playlist_mp4, get_info
 
 
 def main():

@@ -1,16 +1,17 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "ytmedia"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Download MP4 (video+audio) and MP3 from YouTube at the highest possible quality"
 readme = "README.md"
-authors = [{name = 'Rei WuZen'}]
+authors = [{name = "Rei WuZen"}]
 license = { text = "MIT" }
 requires-python = ">=3.10"
 keywords = ["youtube", "download", "mp4", "mp3", "yt-dlp", "video", "audio"]
+
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -18,24 +19,28 @@ classifiers = [
     "Topic :: Multimedia :: Video",
     "Topic :: Multimedia :: Sound/Audio",
 ]
+
 dependencies = [
     "yt-dlp>=2024.1.0",
+    "yt-dlp-ejs",           # JS challenge solver scripts for full YouTube format support
 ]
 
 [project.optional-dependencies]
-# Install this if you don't want to manually install ffmpeg
-ffmpeg = ["static-ffmpeg>=2.5"]
-# Install all optional deps
-all = ["static-ffmpeg>=2.5"]
+ffmpeg = ["static-ffmpeg>=2.5"]     # bundled ffmpeg binary, no manual install needed
+all   = ["static-ffmpeg>=2.5"]      # install everything
 
 [project.scripts]
-# Enables the `ytmedia` command after installation
 ytmedia = "ytmedia.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/ytmedia"
-Issues = "https://github.com/yourusername/ytmedia/issues"
+Issues   = "https://github.com/yourusername/ytmedia/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["ytmedia*"]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "ytmedia.__version__"}
