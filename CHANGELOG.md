@@ -6,6 +6,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.1] - 2026-02-19
+
+### Added
+
+- spinner `⠹` on merger process
+
+### Changed 
+
+- removed ffmpeg from main dependencies
+
+
+---
+
 ## [0.2.0] — 2026-02-19
 
 ### Added

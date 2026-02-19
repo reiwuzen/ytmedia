@@ -57,18 +57,33 @@ def _base_opts(output_dir: str) -> dict[str, Any]:
 
 def _merge_hooks() -> dict[str, Any]:
     """
-    Progress hooks that show a % progress bar for the ffmpeg merge step.
-    yt-dlp fires 'post_process' hooks with status 'started' and 'finished'.
-    We fake a simple progress line since ffmpeg merge duration is unknown.
+    Postprocessor hooks that show an animated spinner during the ffmpeg merge step.
+    A real progress % is not possible since yt-dlp does not expose ffmpeg's progress
+    events -- so a spinner is used to show activity honestly.
     """
+    import itertools
+    import threading
+
+    spinner_chars = itertools.cycle(["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"])
+    stop_event = threading.Event()
+
+    def _spin() -> None:
+        while not stop_event.is_set():
+            print(f"\r[Merger] {next(spinner_chars)} merging video + audio ...", end="", flush=True)
+            stop_event.wait(0.1)
+        print("\r[Merger] done.                               ")
+
     def hook(d: dict[str, Any]) -> None:
-        if d.get("postprocessor") != "MoveFiles":
-            status = d.get("status", "")
-            name   = d.get("postprocessor", "")
-            if status == "started" and "Merger" in name:
-                print("\r[Merger]   0% — merging video + audio ...", end="", flush=True)
-            elif status == "finished" and "Merger" in name:
-                print("\r[Merger] 100% — done.                    ")
+        status = d.get("status", "")
+        name   = d.get("postprocessor", "")
+        if "Merger" not in name:
+            return
+        if status == "started":
+            stop_event.clear()
+            threading.Thread(target=_spin, daemon=True).start()
+        elif status == "finished":
+            stop_event.set()
+
     return {"progress_hooks": [], "postprocessor_hooks": [hook]}
 
 
