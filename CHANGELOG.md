@@ -6,6 +6,44 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.0] — 2026-02-19
+
+### Added
+- `errors.py` — stable exception hierarchy: `YtMediaError`, `DependencyMissing`,
+  `DownloadFailed`, `UnsupportedFormat`, `MergeError`
+  All yt-dlp exceptions are now caught internally and re-raised as ytmedia exceptions,
+  so the API stays stable even if yt-dlp changes
+- `env.py` — pure cached environment detection helpers:
+  `find_ffmpeg()`, `find_node()`, `find_deno()`, `has_ffmpeg()`,
+  `has_js_runtime()`, `get_missing_dependencies()`, `check_ffmpeg()`
+  All results cached via `lru_cache` — detection runs once per process
+- `models.py` — structured return types:
+  `DownloadResult(path, title, url, resolution, video_codec, audio_codec, filesize)`
+  `PlaylistResult(downloads, failed, total)`
+- `ytmedia doctor` CLI command — prints full environment health check
+- `ytmedia install-deps` CLI command — interactive dependency installer
+  (replaces `ytmedia init`)
+
+### Changed
+- `core.py` is now a pure library — zero `print()`, zero `input()`, zero pip installs.
+  Safe to use inside FastAPI, GUIs, async apps, and automation
+- `download_mp4()`, `download_mp3()`, `download_playlist_mp4()` now return
+  `DownloadResult` / `PlaylistResult` instead of raw strings
+- All pip installs and `input()` calls moved exclusively to `cli.py`
+- Environment detection moved to `env.py` with `lru_cache` — no repeated PATH probing
+- 
+
+### Removed
+- `init()` function — replaced by `ytmedia install-deps` (CLI only)
+- All `print()` calls from `core.py`
+
+### Fixed
+- Library no longer mutates the Python environment (no pip installs from library code)
+- Library no longer blocks on stdin (no `input()` from library code)
+- yt-dlp exceptions no longer leak through the public API
+
+---
+
 ## [0.3.0] — 2026-02-19
 
 ### Added

@@ -22,28 +22,26 @@ pip install -e .
 
 ## Quick Setup
 
-After installing, run the init command once to set up ffmpeg and all required dependencies automatically:
+After installing, check your environment and install any missing dependencies:
 
 ```bash
-ytmedia init
+# Check what's installed
+ytmedia doctor
+
+# Install missing dependencies interactively
+ytmedia install-deps
 ```
 
-This will:
-- Install and activate a prebuilt **ffmpeg** binary (no manual system install needed)
-- Install **yt-dlp-ejs** JS challenge solver scripts for full YouTube format support
-- Check for a **Node.js** or **Deno** JS runtime and guide you if missing
-
-> **Note:** For best quality (1080p/4K), a JS runtime is recommended.
-> Install Node.js from [nodejs.org](https://nodejs.org) if you don't have it.
+> **Note:** For best quality (1080p/4K), Node.js is recommended.
+> Install from [nodejs.org](https://nodejs.org) if you don't have it.
 
 ---
 
 ## Requirements
 
 - Python 3.10+
+- ffmpeg — required for 1080p/4K and MP3 conversion (`ytmedia install-deps` can set this up)
 - Node.js (recommended) — for full YouTube format support
-
-Everything else (ffmpeg, yt-dlp-ejs) is handled automatically by `ytmedia init`.
 
 ---
 
@@ -52,35 +50,67 @@ Everything else (ffmpeg, yt-dlp-ejs) is handled automatically by `ytmedia init`.
 ### As a Python library
 
 ```python
-from ytmedia import init, download_mp4, download_mp3, download_playlist_mp4, get_info
-
-# Run once after install to set up dependencies
-init()
+from ytmedia import download_mp4, download_mp3, download_playlist_mp4, get_info
+from ytmedia import DownloadResult, DependencyMissing, DownloadFailed
 
 # Download best quality MP4 (video + audio)
-download_mp4("https://youtu.be/xxxx")
+result = download_mp4("https://youtu.be/xxxx")
+print(result.path)        # Path to saved file
+print(result.resolution)  # e.g. '1080p'
+print(result.audio_codec) # e.g. 'aac'
 
 # Download MP4 capped at 1080p
-download_mp4("https://youtu.be/xxxx", resolution="1080")
+result = download_mp4("https://youtu.be/xxxx", resolution="1080")
 
 # Download to a specific folder
-download_mp4("https://youtu.be/xxxx", output_dir="./videos")
+result = download_mp4("https://youtu.be/xxxx", output_dir="./videos")
 
 # Download MP4 without audio (video only)
-download_mp4("https://youtu.be/xxxx", audio=False)
+result = download_mp4("https://youtu.be/xxxx", audio=False)
 
 # Download MP3 at 320kbps
-download_mp3("https://youtu.be/xxxx")
+result = download_mp3("https://youtu.be/xxxx")
 
 # Download MP3 at a lower bitrate
-download_mp3("https://youtu.be/xxxx", quality="192", output_dir="./music")
+result = download_mp3("https://youtu.be/xxxx", quality="192", output_dir="./music")
 
 # Download an entire playlist as MP4
-download_playlist_mp4("https://youtube.com/playlist?list=xxxx")
+playlist = download_playlist_mp4("https://youtube.com/playlist?list=xxxx")
+print(playlist)  # PlaylistResult(12/12 downloaded, 0 failed)
 
 # Get video metadata without downloading
 info = get_info("https://youtu.be/xxxx")
 print(info["title"], info["duration"])
+```
+
+### Error handling
+
+```python
+from ytmedia import download_mp4, DependencyMissing, DownloadFailed, YtMediaError
+
+try:
+    result = download_mp4("https://youtu.be/xxxx")
+    print(f"Saved to {result.path}")
+except DependencyMissing as e:
+    print(f"Missing: {e.dependency}")  # e.g. 'ffmpeg'
+except DownloadFailed as e:
+    print(f"Download failed: {e}")
+except YtMediaError as e:
+    print(f"Error: {e}")
+```
+
+### Environment checks
+
+```python
+from ytmedia import has_ffmpeg, has_js_runtime, get_missing_dependencies
+
+# Quick checks — cached, no repeated PATH probing
+if not has_ffmpeg():
+    print("ffmpeg not found — run: ytmedia install-deps")
+
+missing = get_missing_dependencies()
+if missing:
+    print(f"Missing dependencies: {missing}")
 ```
 
 ### As a CLI tool
@@ -88,8 +118,11 @@ print(info["title"], info["duration"])
 After installation, the `ytmedia` command is available globally:
 
 ```bash
-# Set up dependencies (run once after install)
-ytmedia init
+# Check environment
+ytmedia doctor
+
+# Install missing dependencies
+ytmedia install-deps
 
 # Download MP4 (best quality)
 ytmedia mp4 https://youtu.be/xxxx
@@ -111,6 +144,9 @@ ytmedia playlist https://youtube.com/playlist?list=xxxx
 
 # Print video metadata
 ytmedia info https://youtu.be/xxxx
+
+# Show full yt-dlp logs (for troubleshooting)
+ytmedia mp4 https://youtu.be/xxxx --debug
 ```
 
 #### CLI options
@@ -121,15 +157,20 @@ ytmedia info https://youtu.be/xxxx
 | `-r`, `--resolution` | Max video height e.g. `1080`, `720` | `best` |
 | `-q`, `--quality` | MP3 bitrate in kbps e.g. `320`, `192` | `320` |
 | `--no-audio` | Download MP4 without audio track | off |
+| `--debug` | Show full yt-dlp internal logs | off |
 
 ---
 
 ## Notes
 
-- URLs containing `&list=` (e.g. from YouTube autoplay) are treated as single-video downloads by default. Use `ytmedia playlist <url>` or pass `allow_playlist=True` in Python to download the full playlist.
-- Without ffmpeg, MP4 downloads fall back to a pre-merged single stream, usually capped at 720p. Run `ytmedia init` to fix this automatically.
+- URLs containing `&list=` (e.g. from YouTube autoplay) are treated as single-video downloads
+  by default. Use `ytmedia playlist <url>` or pass `allow_playlist=True` in Python to download
+  the full playlist.
+- MP4 audio is re-encoded to **AAC** during the merge step, ensuring compatibility with
+  Windows Media Player, QuickTime, and mobile devices.
+- Without ffmpeg, `download_mp4(audio=True)` raises `DependencyMissing`. Run
+  `ytmedia install-deps` to fix.
 - MP3 conversion always requires ffmpeg.
-- MP4 audio is encoded as **AAC** during the merge step, ensuring compatibility with Windows Media Player, QuickTime, and mobile devices.
 
 ---
 

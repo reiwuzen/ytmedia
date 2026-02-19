@@ -22,11 +22,12 @@ classifiers = [
 
 dependencies = [
     "yt-dlp>=2024.1.0",
-    "yt-dlp-ejs", # JS challenge solver scripts for full YouTube format support
+    "yt-dlp-ejs",
 ]
 
 [project.optional-dependencies]
-all = ["static-ffmpeg>=2.5", "yt-dlp-ejs"]     # explicit full install
+ffmpeg = ["static-ffmpeg>=2.5"]
+all    = ["static-ffmpeg>=2.5", "yt-dlp-ejs"]
 
 [project.scripts]
 ytmedia = "ytmedia.cli:main"

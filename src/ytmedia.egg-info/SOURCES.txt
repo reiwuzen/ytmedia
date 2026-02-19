@@ -4,6 +4,9 @@ pyproject.toml
 src/ytmedia/__init__.py
 src/ytmedia/cli.py
 src/ytmedia/core.py
+src/ytmedia/env.py
+src/ytmedia/errors.py
+src/ytmedia/models.py
 src/ytmedia.egg-info/PKG-INFO
 src/ytmedia.egg-info/SOURCES.txt
 src/ytmedia.egg-info/dependency_links.txt

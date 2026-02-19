@@ -362,8 +362,6 @@ def get_info(url: str) -> dict[str, Any]:
             name: {"executable": path} for name, path in runtimes.items()
         }
 
-    opts["noplaylist"] = True   # always extract single video, ignore &list= params
-
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type]
             return ydl.extract_info(url, download=False)  # type: ignore[return-value]
