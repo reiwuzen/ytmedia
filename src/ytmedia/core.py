@@ -6,11 +6,13 @@ Download MP4 (video+audio) and MP3 from YouTube URLs
 using yt-dlp at the highest possible quality.
 """
 
+import itertools
 import os
 import platform
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -41,18 +43,49 @@ def _get_js_runtimes() -> dict[str, Any]:
     return runtimes
 
 
-def _base_opts(output_dir: str) -> dict[str, Any]:
+def _base_opts(output_dir: str, debug: bool = False) -> dict[str, Any]:
     """Shared yt-dlp options."""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     opts: dict[str, Any] = {
         "outtmpl": os.path.join(output_dir, "%(title)s.%(ext)s"),
-        "quiet": False,
-        "no_warnings": False,
+        # debug=False: suppress all yt-dlp internal logs, show only our clean output
+        # debug=True:  show full yt-dlp logs for troubleshooting
+        "quiet": not debug,
+        "no_warnings": not debug,
+        "verbose": debug,
     }
     runtimes = _get_js_runtimes()
     if runtimes:
         opts["js_runtimes"] = runtimes
     return opts
+
+
+def _clean_progress_hook(d: dict[str, Any]) -> None:
+    """
+    Clean progress hook for non-debug mode.
+    Shows a single updating line per stream: [video] or [audio] + % + speed.
+    """
+    if d.get("status") != "downloading":
+        return
+
+    # label stream type based on fragment or format info
+    filename = d.get("filename", "")
+    if ".f" in os.path.basename(filename):
+        ext = os.path.splitext(filename)[-1].lstrip(".")
+        label = "[audio]" if ext in ("webm", "m4a", "opus") else "[video]"
+    else:
+        label = "[download]"
+
+    percent   = d.get("_percent_str", "?%").strip()
+    speed     = d.get("_speed_str", "?").strip()
+    size      = d.get("_total_bytes_str") or d.get("_total_bytes_estimate_str") or "?"
+    eta       = d.get("_eta_str", "?").strip()
+
+    print(f"\r{label:10} {percent:>6} of {size:>10} at {speed:>12}  ETA {eta}   ",
+          end="", flush=True)
+
+    if d.get("status") == "finished":
+        print()  # newline after stream finishes
 
 
 def _merge_hooks() -> dict[str, Any]:
@@ -61,17 +94,17 @@ def _merge_hooks() -> dict[str, Any]:
     A real progress % is not possible since yt-dlp does not expose ffmpeg's progress
     events -- so a spinner is used to show activity honestly.
     """
-    import itertools
-    import threading
-
-    spinner_chars = itertools.cycle(["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"])
+    spinner_chars = itertools.cycle(["\u280b", "\u2819", "\u2839", "\u2838",
+                                     "\u283c", "\u2834", "\u2826", "\u2827",
+                                     "\u2807", "\u280f"])
     stop_event = threading.Event()
 
     def _spin() -> None:
         while not stop_event.is_set():
-            print(f"\r[Merger] {next(spinner_chars)} merging video + audio ...", end="", flush=True)
+            print(f"\r[Merger]   {next(spinner_chars)} merging video + audio ...",
+                  end="", flush=True)
             stop_event.wait(0.1)
-        print("\r[Merger] done.                               ")
+        print("\r[Merger]   done.                               ")
 
     def hook(d: dict[str, Any]) -> None:
         status = d.get("status", "")
@@ -144,7 +177,7 @@ def init() -> None:
                     print("[ffmpeg]     note: this is scoped to your Python environment,")
                     print("             not a system-wide install.")
                 else:
-                    print("[ffmpeg]     installed but PATH not updated yet — restart your terminal.")
+                    print("[ffmpeg]     installed but PATH not updated yet -- restart your terminal.")
             except Exception as e:
                 print(f"[ffmpeg]     failed: {e}")
                 _print_ffmpeg_install_hint()
@@ -156,7 +189,7 @@ def init() -> None:
         else:
             print("[ffmpeg]     skipped. Run ytmedia init again when ready.")
 
-    # 3 — JS runtime check (Node.js / Deno — must be installed by user)
+    # 3 — JS runtime check (Node.js / Deno -- must be installed by user)
     runtimes = _get_js_runtimes()
     if runtimes:
         for name, info in runtimes.items():
@@ -175,7 +208,7 @@ def init() -> None:
 def _print_ffmpeg_install_hint() -> None:
     """Print platform-specific ffmpeg install instructions as a fallback."""
     system = platform.system()
-    print("\n[ffmpeg] Please install ffmpeg manually:")
+    print("[ffmpeg] Please install ffmpeg manually:")
     if system == "Windows":
         print("         winget install ffmpeg")
         print("         or: https://www.gyan.dev/ffmpeg/builds/")
@@ -197,6 +230,7 @@ def download_mp4(
     resolution: str = "best",
     audio: bool = True,
     allow_playlist: bool = False,
+    debug: bool = False,
 ) -> str:
     """
     Download a YouTube video as MP4 at the highest available resolution.
@@ -209,6 +243,7 @@ def download_mp4(
     audio          : Include audio track in the MP4 (default: True).
                      Set to False to download video-only (smaller file size).
     allow_playlist : If True, download the whole playlist. Default False (single video).
+    debug          : If True, show full yt-dlp logs. Default False (clean output).
 
     Returns
     -------
@@ -245,7 +280,7 @@ def download_mp4(
         else:
             fmt = f"best[height<={resolution}][ext=mp4]/best[height<={resolution}]/best"
 
-    opts = _base_opts(output_dir)
+    opts = _base_opts(output_dir, debug=debug)
     opts.update(
         {
             "format": fmt,
@@ -264,8 +299,9 @@ def download_mp4(
             "merger": ["-c:v", "copy", "-c:a", "aac"]
         }
 
-    # Show merge progress
-    opts.update(_merge_hooks())
+    if not debug:
+        opts["progress_hooks"] = [_clean_progress_hook]
+        opts.update(_merge_hooks())
 
     with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type]
         info = ydl.extract_info(url, download=True)
@@ -282,6 +318,7 @@ def download_mp3(
     url: str,
     output_dir: str = "downloads",
     quality: str = "320",
+    debug: bool = False,
 ) -> str:
     """
     Download a YouTube video and extract audio as MP3.
@@ -291,12 +328,13 @@ def download_mp3(
     url        : YouTube video URL.
     output_dir : Folder to save the file (created if it doesn't exist).
     quality    : Audio bitrate in kbps -- '320', '192', '128', etc. (default '320').
+    debug      : If True, show full yt-dlp logs. Default False (clean output).
 
     Returns
     -------
     Path to the downloaded MP3 file.
     """
-    opts = _base_opts(output_dir)
+    opts = _base_opts(output_dir, debug=debug)
     opts.update(
         {
             "format": "bestaudio/best",
@@ -311,6 +349,9 @@ def download_mp3(
         }
     )
 
+    if not debug:
+        opts["progress_hooks"] = [_clean_progress_hook]
+
     with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type]
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
@@ -323,6 +364,7 @@ def download_playlist_mp4(
     playlist_url: str,
     output_dir: str = "downloads",
     resolution: str = "best",
+    debug: bool = False,
 ) -> list[str]:
     """
     Download all videos in a YouTube playlist as MP4 with audio.
@@ -332,6 +374,7 @@ def download_playlist_mp4(
     playlist_url : YouTube playlist URL.
     output_dir   : Folder to save files.
     resolution   : 'best' or a specific height like '1080'.
+    debug        : If True, show full yt-dlp logs. Default False (clean output).
 
     Returns
     -------
@@ -346,7 +389,7 @@ def download_playlist_mp4(
             f"/best[height<={resolution}]"
         )
 
-    opts = _base_opts(output_dir)
+    opts = _base_opts(output_dir, debug=debug)
     opts.update(
         {
             "format": fmt,
@@ -357,7 +400,10 @@ def download_playlist_mp4(
             },
         }
     )
-    opts.update(_merge_hooks())
+
+    if not debug:
+        opts["progress_hooks"] = [_clean_progress_hook]
+        opts.update(_merge_hooks())
 
     downloaded = []
     with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type]

@@ -6,6 +6,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.0] — 2026-02-19
+
+### Added
+- `debug` parameter on `download_mp4()`, `download_mp3()`, and `download_playlist_mp4()`
+  — set `debug=True` to show full yt-dlp internal logs for troubleshooting
+- `--debug` CLI flag for all download commands
+- Clean progress output by default — shows `[video]` and `[audio]` download lines
+  with % progress, speed, size and ETA instead of raw yt-dlp logs
+
+### Changed
+- Default output is now quiet and clean — yt-dlp internal logs (`[youtube] Downloading...`,
+  `[info]`, etc.) are suppressed unless `debug=True` is set
+- Spinner and progress hooks only applied in non-debug mode to avoid output conflicts
+
+---
+
 ## [0.2.2] — 2026-02-19
 
 ### Added

@@ -11,6 +11,7 @@ Usage examples:
     ytmedia mp3 https://youtu.be/xxxx -o ./music -q 192
     ytmedia playlist https://youtube.com/playlist?list=xxxx
     ytmedia info https://youtu.be/xxxx
+    ytmedia mp4 https://youtu.be/xxxx --debug
 """
 
 import argparse
@@ -34,6 +35,7 @@ examples:
   ytmedia mp3 https://youtu.be/xxxx -q 192            # 192kbps MP3
   ytmedia playlist https://youtube.com/playlist?list=xxxx
   ytmedia info https://youtu.be/xxxx
+  ytmedia mp4 https://youtu.be/xxxx --debug           # show full yt-dlp logs
         """,
     )
 
@@ -44,7 +46,7 @@ examples:
     )
     parser.add_argument(
         "url",
-        nargs="?",          # optional — not required for init
+        nargs="?",
         help="YouTube video or playlist URL",
     )
     parser.add_argument(
@@ -71,6 +73,12 @@ examples:
         default=False,
         help="Download MP4 without audio track (video only)",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Show full yt-dlp logs for troubleshooting",
+    )
 
     args = parser.parse_args()
 
@@ -88,13 +96,24 @@ examples:
                 output_dir=args.output,
                 resolution=args.resolution,
                 audio=not args.no_audio,
+                debug=args.debug,
             )
 
         elif args.mode == "mp3":
-            download_mp3(args.url, output_dir=args.output, quality=args.quality)
+            download_mp3(
+                args.url,
+                output_dir=args.output,
+                quality=args.quality,
+                debug=args.debug,
+            )
 
         elif args.mode == "playlist":
-            download_playlist_mp4(args.url, output_dir=args.output, resolution=args.resolution)
+            download_playlist_mp4(
+                args.url,
+                output_dir=args.output,
+                resolution=args.resolution,
+                debug=args.debug,
+            )
 
         elif args.mode == "info":
             info = get_info(args.url)
