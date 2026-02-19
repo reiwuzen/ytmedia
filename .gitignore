@@ -7,3 +7,4 @@ venv/
 downloads/
 cookies.txt
 dist/
+build/
